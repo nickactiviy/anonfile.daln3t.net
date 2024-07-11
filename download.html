@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <link rel="shortcut icon" href="anonfile.png">
+    <title>Download and Decrypt File</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #121212;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            padding: 20px;
+            box-sizing: border-box;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 100vh;
+        }
+        .logo-banner img {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+        }
+        h2 {
+            color: #ffffff;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+        }
+        #message {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #2e2e2e;
+            border: 1px solid #444;
+            border-radius: 4px;
+            word-wrap: break-word;
+            color: #ffffff;
+        }
+        .storage-message {
+            color: #ccc;
+            margin-top: 10px;
+        }
+        .footer {
+            margin-top: auto;
+            text-align: center;
+        }
+        .footer-links {
+            margin-top: 20px;
+        }
+        .footer-links a {
+            color: #ccc;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+        .footer-links a:hover {
+            color: #fff;
+        }
+        .copyright {
+            margin-top: 10px;
+            color: #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo-banner">
+            <img src="logo.png" alt="Logo">
+        </div>
+        <h2>Download and Decrypt File</h2>
+        <div id="message">Decrypting file...</div>
+        <div class="storage-message">
+            Files are encrypted client-side and stored for 30 days. Max. file size: 2GB
+        </div>
+        <div class="footer">
+            <div class="footer-links">
+                <a href="mailto:ghostseccr@proton.me">Report Abuse</a>
+                <a href="https://www.instagram.com/@ghostsecr" target="_blank">Social Media</a>
+                <a href="/privacy-policy.html">Privacy Policy</a>
+                <a href="/terms-of-use.html">Terms of Use</a>
+            </div>
+            <div class="copyright">
+                <strong>&copy; 2024 Ghostsecr | All rights reserved.</strong>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function importKey(hexKey) {
+            const keyBuffer = new Uint8Array(hexKey.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+            return window.crypto.subtle.importKey(
+                "raw",
+                keyBuffer,
+                { name: "AES-GCM" },
+                true,
+                ["decrypt"]
+            );
+        }
+
+        async function decryptFile(encryptedBuffer, iv, key) {
+            const algorithm = {
+                name: "AES-GCM",
+                iv: iv
+            };
+            return window.crypto.subtle.decrypt(
+                algorithm,
+                key,
+                encryptedBuffer
+            );
+        }
+
+        async function downloadDecryptedFile(fileName, decryptedBuffer) {
+            const blob = new Blob([decryptedBuffer]);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        async function startDecryption() {
+            const hash = window.location.hash.substring(1);
+            const parts = hash.split('-');
+            const fileName = parts.slice(1).join('-');  // Join all parts except the first one which is the key
+            const keyHex = parts[0];
+
+            if (!keyHex || !fileName) {
+                document.getElementById('message').textContent = 'Invalid download link.';
+                return;
+            }
+
+            try {
+                const response = await fetch('download.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ file: fileName })
+                });
+
+                if (!response.ok) {
+                    document.getElementById('message').textContent = 'File download failed.';
+                    return;
+                }
+
+                const encryptedBlob = await response.blob();
+                const arrayBuffer = await encryptedBlob.arrayBuffer();
+                const iv = new Uint8Array(arrayBuffer.slice(0, 12));
+                const encryptedBuffer = arrayBuffer.slice(12);
+                const key = await importKey(keyHex);
+                const decryptedBuffer = await decryptFile(encryptedBuffer, iv, key);
+
+                await downloadDecryptedFile(fileName, decryptedBuffer);
+                document.getElementById('message').textContent = 'File decrypted and downloaded.';
+            } catch (error) {
+                console.error('Decryption error:', error);
+                document.getElementById('message').textContent = 'Error decrypting file.';
+            }
+        }
+
+        window.onload = startDecryption;
+    </script>
+</body>
+</html>
