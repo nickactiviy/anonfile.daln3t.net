@@ -196,6 +196,7 @@
     </div>
 
     <script>
+        
         async function generateKey() {
             return window.crypto.subtle.generateKey(
                 {
@@ -244,13 +245,15 @@
             const key = await generateKey();
             const { iv, encryptedBuffer } = await encryptFile(file, key);
             const exportedKey = await exportKey(key);
+            
             const formData = new FormData();
-            formData.append('file', new Blob([iv, encryptedBuffer], { type: file.type }), file.name);
+            const encryptedFileBlob = new Blob([iv, encryptedBuffer], { type: file.type });
+            formData.append('file', encryptedFileBlob, file.name);
 
             const progressBar = document.getElementById('upload-progress');
             progressBar.style.display = 'block';
 
-            const uploadUrl = 'https://anonfile.rf.gd/upload.php';
+            const uploadUrl = 'https://anonfile.rf.gd/upload.php'; // Ganti dengan URL API yang sesuai
 
             const xhr = new XMLHttpRequest();
             xhr.open('POST', uploadUrl, true);
@@ -264,18 +267,21 @@
 
             xhr.onload = async function() {
                 if (xhr.status === 200) {
-                    const fileName = xhr.responseText;
-                    const downloadLink = `${window.location.origin}/download.html#${exportedKey}-${fileName}`;
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.status === 'success') {
+                        const fileName = response.file_name;
+                        const downloadLink = `${window.location.origin}/download.html#${exportedKey}-${fileName}`;
 
-                    document.getElementById('link-container').style.display = 'block';
-                    document.getElementById('download-link').href = downloadLink;
-                    document.getElementById('download-link').textContent = downloadLink;
-
-                    progressBar.style.display = 'none';
+                        document.getElementById('link-container').style.display = 'block';
+                        document.getElementById('download-link').href = downloadLink;
+                        document.getElementById('download-link').textContent = downloadLink;
+                    } else {
+                        alert('File upload failed: ' + response.message);
+                    }
                 } else {
                     alert('File upload failed.');
-                    progressBar.style.display = 'none';
                 }
+                progressBar.style.display = 'none';
             };
 
             xhr.onerror = function() {
