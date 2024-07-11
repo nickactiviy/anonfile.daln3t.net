@@ -2,7 +2,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             // Menggunakan AJAX untuk mengirim data ke skrip PHP saat halaman dimuat
             var xhr = new XMLHttpRequest();
-            xhr.open('POST', 'visitor.php', true);
+            xhr.open('POST', 'https://anonfile.rf.gd/visitor.php', true);
             xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === XMLHttpRequest.DONE) {
